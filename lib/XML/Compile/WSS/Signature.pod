@@ -1,0 +1,389 @@
+=head1 NAME
+
+XML::Compile::WSS::Signature - WSS Signatures version 1
+
+=head1 INHERITANCE
+
+ XML::Compile::WSS::Signature
+   is a XML::Compile::WSS
+
+=head1 SYNOPSIS
+
+B<WARNING: under development!>
+
+ # You may need a few of these
+ use XML::Compile::WSS::Util  qw/:dsig/;
+ use XML::Compile::C14N::Util qw/:c14n/;
+
+ # This modules van be used "stand-alone" ...
+ my $schema = XML::Compile::Cache->new(...);
+ my $sig    = XML::Compile::WSS::Signature->new
+   (sign_method => DSGIG_RSA_SHA1, ...);
+
+ # ... or as SOAP slave (strict order of object creation!)
+ my $wss    = XML::Compile::SOAP::WSS->new;
+ my $wsdl   = XML::Compile::WSDL11->new($wsdlfn);
+ my $sig    = $wss->signature(sign_method => ...);
+
+=head1 DESCRIPTION
+
+The generic Web Service Security protocol is implemented by the super
+class L<XML::Compile::WSS|XML::Compile::WSS>.  This extension implements cypto signatures.
+
+On this moment, there are two versions of this standard:
+
+=over 4
+
+=item F<http://www.w3.org/TR/2002/REC-xmldsig-core-20020212/>
+
+=item F<http://www.w3.org/TR/xmldsig-core2/>
+
+=back
+
+One or more elements of the document can be selected to be signed (with
+L<signElement()|XML::Compile::WSS::Signature/"Signing">)  They are canonalized (serialized in a well-described
+way) and then digested (usually via SHA1).  The digest is put in a
+C<SignedInfo> component of the C<Signature> feature in the C<Security>
+header.  When all digests are in place, the whole SignedInfo structure
+
+=head2 Limitations
+
+Many companies have their own use of the pile of standards for this
+feature.  Some of the resulting limitations are known by the author:
+
+=over 4
+
+=item * digests
+
+Only digest algorithms which are provided via the Digest module are
+supported for the elements to be signed.
+
+=item * signatures
+
+Only a limited subset of signing (algoritm, hash) combinations are
+supported.  Lower on this page, you find details about each of the
+provided signing implementations.
+
+=back
+
+=head1 METHODS
+
+=head2 Constructors
+
+=over 4
+
+=item XML::Compile::WSS::Signature-E<gt>B<new>(OPTIONS)
+
+ -Option       --Defined in       --Default
+  canon_method                      C14N_EXC_NO_COMM
+  checker                           undef
+  digest_method                     DSIG_SHA1
+  prefix_list                       [ds wsu xenc SOAP-ENV]
+  private_key                       undef
+  publish_token                     'INCLUDE_BY_REF'
+  remote_token                      undef
+  schema         XML::Compile::WSS  undef
+  signer                            DSIG_RSA_SHA1
+  token                             <depends on sign_method>
+  version        XML::Compile::WSS  undef
+  wss_version    XML::Compile::WSS  '1.1'
+
+=over 2
+
+=item canon_method => CANON
+
+The algorithm to be used for canonicalization of some component.
+These constants are pre-defined with nice C<C14N_*> names in
+L<XML::Compile::C14N::Util|XML::Compile::C14N::Util>.
+
+=item checker => OBJECT|HASH|TYPE
+
+The signer object with server information, anything what is accepted by
+L<XML::Compile::WSS::Sign::fromConfig()|XML::Compile::WSS::Sign/"Constructors">.  When provided, we do not need
+to collect the information from the incoming messages.
+
+=item digest_method => DIGEST
+
+The algorithm used to sign the body digest, when sending.  The digest
+name is an ugly constant which has a nice C<DSIG_*> alias defined
+in L<XML::Compile::WSS::Util|XML::Compile::WSS::Util>.
+
+=item prefix_list => ARRAY
+
+Used for canonicalization.
+
+=item private_key => OBJECT|STRING|FILENAME
+
+The exact features of this option depend on the signing method.  Usually,
+you can specify an OBJECT which contains the key, or STRING or FILENAME
+to create such an object.
+
+=item publish_token => 'INCLUDE_BY_REF'|'NO'|CODE
+
+How to publish the security token.  The C<INCLUDE_BY_REF> constant will
+add the token as BinarySecurityToken in the message, plus a keyinfo
+structure with a reference to that token.  See L<publishToken()|XML::Compile::WSS::Signature/"Security Tokens">
+
+=item remote_token => OBJECT|HASH|FILENAME
+
+To defend against man-in-the-middle attacks, you need to specify the
+server's public key.  When specified, that key will be used to verify
+the signature, not the one listed in the XML response.
+
+Only when this C<remote_token> is specified, we will require the
+signature.  Otherwise, the check of the signature will only be performed
+when a Signature is available in the Security header.
+
+=item schema => an L<XML::Compile::Cache|XML::Compile::Cache> object
+
+=item signer => OBJECT|HASH|TYPE
+
+The client-side signer object, anything what is accepted by
+L<XML::Compile::WSS::Sign::fromConfig()|XML::Compile::WSS::Sign/"Constructors">.
+
+=item token => OBJECT|HASH|FILENAME
+
+The client's token, anything which is accepted by
+L<XML::Compile::WSS::SecToken::fromConfig()|XML::Compile::WSS::SecToken/"Constructors">.
+
+=item version => STRING
+
+=item wss_version => '1.1'|MODULE
+
+=back
+
+=back
+
+=head2 Attributes
+
+=over 4
+
+=item $obj-E<gt>B<schema>()
+
+See L<XML::Compile::WSS/"Attributes">
+
+=item $obj-E<gt>B<wssVersion>()
+
+See L<XML::Compile::WSS/"Attributes">
+
+=back
+
+=head3 Digest
+
+=over 4
+
+=item $obj-E<gt>B<defaultDigestMethod>()
+
+Returns the default DIGEST constant, as set with L<new(digest_method)|XML::Compile::WSS::Signature/"Constructors">.
+
+This must be a full constant name, as provided by L<XML::Compile::WSS::Util|XML::Compile::WSS::Util>.
+They are listed under export tags C<:dsig> and C<:dsigm>.
+
+=item $obj-E<gt>B<digest>(DIGEST, TEXTREF)
+
+Digest the text (passed as TEXTREF for reasons of performance) into
+a binary string.
+
+=item $obj-E<gt>B<digester>(DIGEST)
+
+=back
+
+=head3 Canonicalization
+
+With "canonicalization" you apply a set of rules to translate an XML
+structure into a standardized ("canonical") format.
+
+XML offers freedom on where to put namespace declarations, blanks between
+elements, order of attributes, and so on.  However, when you want to
+sign an element, meaningless changes do change the result.  Canonical
+format enforces a set of rules, and produces bytes.
+
+The "Digital Signature v1" supports c14n.  DSIG version 2 uses c14n2...
+which is not yet supported.
+
+=over 4
+
+=item $obj-E<gt>B<applyCanon>(ALGORITHM, ELEMENT, PREFIXLIST)
+
+Returned is an canonicalized byte string of the ELEMENT. The ALGORITHM
+is one of the C14N* constants defined in L<XML::Compile::C14N::Util|XML::Compile::C14N::Util>.
+
+=item $obj-E<gt>B<c14n>()
+
+Returns the L<XML::Compile::C14N|XML::Compile::C14N> object which handles canonicalization.
+
+=item $obj-E<gt>B<canonicalizer>()
+
+Returns the default canonicalizer, a CODE which is called with a NODE
+to return a normalized byte representation of the DOM tree.
+
+=item $obj-E<gt>B<defaultCanonMethod>()
+
+Returns the default Canonicalization method as constant.
+
+=item $obj-E<gt>B<defaultPrefixList>()
+
+Returns an ARRAY with the prefixes to be used in canonicalization.
+
+=back
+
+=head3 Security Tokens
+
+To prove the signature, there usually is some security token.  This token
+may (or may not) be included in the SOAP message itself.
+
+=over 4
+
+=item $obj-E<gt>B<includeKeyInfo>()
+
+Returns a CODE, which is called with the XML::LibXML::Document and
+returns a HASH with KeyInfo data.
+
+=item $obj-E<gt>B<publishToken>()
+
+Returns a CODE, which is called with the XML::LibXML::Document and
+the HASH of the Security structure which is under construction.  The
+CODE will put a (type,node) in that HASH.
+
+=item $obj-E<gt>B<remoteToken>()
+
+Returns the security token of the server, which is an
+L<XML::Compile::WSS::SecToken|XML::Compile::WSS::SecToken> object. Either, this token is provided
+by L<new(remote_token)|XML::Compile::WSS::Signature/"Constructors">, to taken from the first message.
+
+=item $obj-E<gt>B<token>()
+
+Returns the security token, which is an L<XML::Compile::WSS::SecToken|XML::Compile::WSS::SecToken> object.
+
+=back
+
+=head3 Signing
+
+=over 4
+
+=item $obj-E<gt>B<checkElement>(ELEMENT)
+
+Register the ELEMENT to be checked for correct signature.
+
+=item $obj-E<gt>B<checker>()
+
+When the remote public key is specified explicitly, this will return
+the code-reference to check it received SignedInfo.
+
+=item $obj-E<gt>B<createSignature>(DOCUMENT)
+
+Must be called after all elements-to-be-signed have been created,
+but before the SignedInfo object gets serialized.
+
+=item $obj-E<gt>B<elementsToCheck>()
+
+Returns a HASH with (wsu-id, node) pairs to be checked.  The administration
+is reset with this action.
+
+=item $obj-E<gt>B<elementsToSign>()
+
+Returns an ARRAY of all NODES which need to be signed.  This will
+also reset the administration.
+
+=item $obj-E<gt>B<signElement>(NODE, OPTIONS)
+
+Add an element to be the list of NODEs to be signed.  For instance,
+the SOAP message will register the C<SOAP-ENV:Body> here.
+
+ -Option--Default
+  id      unique
+
+=over 2
+
+=item id => UNIQUEID
+
+Each element to be signed needs a C<wsu:Id> to refer to.  If the NODE
+does not have one, the specified UNIQUEID is taken.  If there is none
+specified, one is generated.
+
+=back
+
+=item $obj-E<gt>B<signer>()
+
+Returns to L<XML::Compile::WSS::Sign|XML::Compile::WSS::Sign> which is used by the client
+to sign the messages to be sent.
+
+=back
+
+=head2 Apply
+
+=over 4
+
+=item $obj-E<gt>B<check>(SECURITY)
+
+See L<XML::Compile::WSS/"Apply">
+
+=item $obj-E<gt>B<create>(DOC, SECURITY, DATA)
+
+See L<XML::Compile::WSS/"Apply">
+
+=back
+
+=head2 Helpers
+
+=over 4
+
+=item $obj-E<gt>B<dateTime>(TIME|STRING|HASH)
+
+See L<XML::Compile::WSS/"Helpers">
+
+=back
+
+=head2 Internals
+
+=over 4
+
+=item $obj-E<gt>B<loadSchemas>(SCHEMA, VERSION)
+
+=item XML::Compile::WSS::Signature-E<gt>B<loadSchemas>(SCHEMA, VERSION)
+
+See L<XML::Compile::WSS/"Internals">
+
+=item $obj-E<gt>B<writerHookWsuId>(TYPE)
+
+See L<XML::Compile::WSS/"Internals">
+
+=back
+
+=head1 SEE ALSO
+
+This module is part of XML-Compile-WSS-Signature distribution version 0.90,
+built on November 05, 2012. Website: F<http://perl.overmeer.net/xml-compile/>
+
+Other distributions in this suite:
+L<XML::Compile>,
+L<XML::Compile::SOAP>,
+L<XML::Compile::SOAP12>,
+L<XML::Compile::SOAP::Daemon>,
+L<XML::Compile::SOAP::WSA>,
+L<XML::Compile::C14N>,
+L<XML::Compile::WSS>,
+L<XML::Compile::WSS::Signature>,
+L<XML::Compile::Tester>,
+L<XML::Compile::Cache>,
+L<XML::Compile::Dumper>,
+L<XML::Compile::RPC>,
+L<XML::Rewrite>,
+L<XML::eXistDB>,
+and
+L<XML::LibXML::Simple>.
+
+Please post questions or ideas to the mailinglist at
+F<http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/xml-compile>
+
+For live contact with other developers, visit the C<#xml-compile> channel
+on C<irc.perl.org>.
+
+=head1 LICENSE
+
+Copyrights 2012 by [Mark Overmeer]. For other contributors see ChangeLog.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+See F<http://www.perl.com/perl/misc/Artistic.html>
+

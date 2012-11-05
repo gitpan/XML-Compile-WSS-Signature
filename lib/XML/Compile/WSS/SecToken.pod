@@ -1,0 +1,143 @@
+=head1 NAME
+
+XML::Compile::WSS::SecToken - Base for WSS Security Tokens
+
+=head1 INHERITANCE
+
+ XML::Compile::WSS::SecToken is extended by
+   XML::Compile::WSS::SecToken::X509v3
+
+=head1 SYNOPSIS
+
+  # either
+  use XML::Compile::WSS::Util qw/XTP10_X509v3/;
+  my $token = XML::Compile::WSS::SecToken->new(type => XTP10_X509v3, ...);
+
+  # or
+  use XML::Compile::WSS::SecToken::X509v3;
+  my $token = XML::Compile::WSS::SecToken::X509v3->new(...);
+
+=head1 DESCRIPTION
+
+=head2 Supported token types
+
+=over 4
+
+=item * X509v3, see L<XML::Compile::WSS::SecToken::X509v3|XML::Compile::WSS::SecToken::X509v3>
+
+=back
+
+=head2 Not supporter (yet)
+
+Other token types, found in the documentation, but not (yet) supported:
+
+=over 4
+
+=item * LTPA: Lightweight Third Party Authentication (version 1)
+
+=item * LTPAv2: Lightweight Third Party Authentication version 2
+
+=back
+
+Hire me to implement these!
+
+=head1 METHODS
+
+=head2 Constructors
+
+=over 4
+
+=item XML::Compile::WSS::SecToken-E<gt>B<fromBinSecToken>(WSS, DATA)
+
+Convert the information of a binary security token, where DATA is
+produced by the L<XML::Compile|XML::Compile> reader, to a security token.
+
+=item XML::Compile::WSS::SecToken-E<gt>B<fromConfig>([CONFIG])
+
+Try to be very flexible.  CONFIG can be a HASH, which could also be
+passed to L<new()|XML::Compile::WSS::SecToken/"Constructors"> directly.  But it can also be various kinds of
+objects.
+
+=item XML::Compile::WSS::SecToken-E<gt>B<new>(OPTIONS)
+
+ -Option--Default
+  binary  undef
+  id      'my-token'
+  type    XTP10_X509v3
+
+=over 2
+
+=item binary => BYTES
+
+=item id => wsu::Id
+
+=item type => TOKENTYPE
+
+=back
+
+=back
+
+=head2 Attributes
+
+=over 4
+
+=item $obj-E<gt>B<id>()
+
+=item $obj-E<gt>B<type>()
+
+=back
+
+=head2 Handlers
+
+=over 4
+
+=item $obj-E<gt>B<asBinary>()
+
+Returns the token information, to be used in a "BinarySecurityToken"
+object.  Returned is the EncodingType used (may be undef) and the
+encoded data as by preference of the token type.
+
+=item $obj-E<gt>B<makeBinSecTokenWriter>(WSS)
+
+Returns a CODE which is used to produced a BinarySecurityToken child for
+the Security header.
+
+=back
+
+=head1 SEE ALSO
+
+This module is part of XML-Compile-WSS-Signature distribution version 0.90,
+built on November 05, 2012. Website: F<http://perl.overmeer.net/xml-compile/>
+
+Other distributions in this suite:
+L<XML::Compile>,
+L<XML::Compile::SOAP>,
+L<XML::Compile::SOAP12>,
+L<XML::Compile::SOAP::Daemon>,
+L<XML::Compile::SOAP::WSA>,
+L<XML::Compile::C14N>,
+L<XML::Compile::WSS>,
+L<XML::Compile::WSS::Signature>,
+L<XML::Compile::Tester>,
+L<XML::Compile::Cache>,
+L<XML::Compile::Dumper>,
+L<XML::Compile::RPC>,
+L<XML::Rewrite>,
+L<XML::eXistDB>,
+and
+L<XML::LibXML::Simple>.
+
+Please post questions or ideas to the mailinglist at
+F<http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/xml-compile>
+
+For live contact with other developers, visit the C<#xml-compile> channel
+on C<irc.perl.org>.
+
+=head1 LICENSE
+
+Copyrights 2012 by [Mark Overmeer]. For other contributors see ChangeLog.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+See F<http://www.perl.com/perl/misc/Artistic.html>
+

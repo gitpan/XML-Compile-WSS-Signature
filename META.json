@@ -1,0 +1,54 @@
+{
+   "abstract" : "OASIS WSS Signatures",
+   "author" : [
+      "Mark Overmeer"
+   ],
+   "dynamic_config" : 1,
+   "generated_by" : "ExtUtils::MakeMaker version 6.6302, CPAN::Meta::Converter version 2.120921",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "XML-Compile-WSS-Signature",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Crypt::OpenSSL::RSA" : "0",
+            "Crypt::OpenSSL::X509" : "0",
+            "Digest" : "0",
+            "Encode" : "0",
+            "File::Basename" : "0",
+            "File::Slurp" : "0",
+            "Log::Report" : "0.92",
+            "MIME::Base64" : "0",
+            "Test::More" : "0.54",
+            "XML::Compile" : "1.29",
+            "XML::Compile::C14N" : "0.90",
+            "XML::Compile::Cache" : "0.992",
+            "XML::Compile::SOAP" : "2.33",
+            "XML::Compile::WSS" : "1.04"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "version" : "0.90"
+}
