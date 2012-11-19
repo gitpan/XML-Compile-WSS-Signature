@@ -7,7 +7,7 @@ use strict;
 
 package XML::Compile::WSS::Sign;
 use vars '$VERSION';
-$VERSION = '0.90';
+$VERSION = '0.91';
 
 
 use Log::Report 'xml-compile-wss-sig';

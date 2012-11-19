@@ -170,8 +170,8 @@ constant for that in the standards.
 
 =head1 SEE ALSO
 
-This module is part of XML-Compile-WSS-Signature distribution version 0.90,
-built on November 05, 2012. Website: F<http://perl.overmeer.net/xml-compile/>
+This module is part of XML-Compile-WSS-Signature distribution version 0.91,
+built on November 19, 2012. Website: F<http://perl.overmeer.net/xml-compile/>
 
 Other distributions in this suite:
 L<XML::Compile>,

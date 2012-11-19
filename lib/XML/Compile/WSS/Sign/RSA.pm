@@ -7,7 +7,7 @@ use strict;
 
 package XML::Compile::WSS::Sign::RSA;
 use vars '$VERSION';
-$VERSION = '0.90';
+$VERSION = '0.91';
 
 use base 'XML::Compile::WSS::Sign';
 
@@ -80,7 +80,7 @@ sub publicKey(;$)
       : $token->isa('Crypt::OpenSSL::X509')
       ? Crypt::OpenSSL::RSA->new_public_key($token->pubkey)
       : error __x"unsupported public key `{token}' for check RSA"
-           , token => $token;
+          , token => $token;
 }
 
 
@@ -116,6 +116,5 @@ sub check($$)
 }
 
 #-----------------
-
 
 1;

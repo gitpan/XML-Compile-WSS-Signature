@@ -1,6 +1,13 @@
 
 ==== version history of XML::Compile:WSS::Signature
 
+version 0.91: Mon Nov 19 17:17:14 CET 2012
+
+	- canonicalization check fixed.
+
+	- remove .Signature.pm.swp from MANIFEST
+	  rt.cpan.org#81065 [Chernomyrdin]
+
 version 0.90: Mon Nov  5 14:33:32 CET 2012
 
 	- split-off from XML::Compile::WSS v1.03

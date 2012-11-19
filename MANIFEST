@@ -2,7 +2,6 @@ ChangeLog
 MANIFEST
 Makefile.PL
 README
-lib/XML/Compile/WSS/.Signature.pm.swp
 lib/XML/Compile/WSS/SecToken.pm
 lib/XML/Compile/WSS/SecToken.pod
 lib/XML/Compile/WSS/SecToken/X509v3.pm

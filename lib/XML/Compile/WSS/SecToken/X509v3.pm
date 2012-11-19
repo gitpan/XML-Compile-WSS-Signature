@@ -7,7 +7,7 @@ use strict;
 
 package XML::Compile::WSS::SecToken::X509v3;
 use vars '$VERSION';
-$VERSION = '0.90';
+$VERSION = '0.91';
 
 use base 'XML::Compile::WSS::SecToken';
 
@@ -62,7 +62,6 @@ sub certificate() {shift->{XCWSX_cert}}
 sub asBinary()
 {   my $self = shift;
     my $cert = $self->certificate;
-#XXX MO: include as string?
     ( WSM10_BASE64, encode_base64 $cert->as_string(FORMAT_ASN1));
 }
 
