@@ -31,5 +31,5 @@ requires:
   XML::Compile::C14N: 0.90
   XML::Compile::Cache: 0.992
   XML::Compile::SOAP: 2.33
-  XML::Compile::WSS: 1.04
-version: 0.91
+  XML::Compile::WSS: 1.07
+version: 1.06

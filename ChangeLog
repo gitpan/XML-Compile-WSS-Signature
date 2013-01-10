@@ -1,6 +1,12 @@
 
 ==== version history of XML::Compile:WSS::Signature
 
+version 1.06: Thu Jan 10 09:02:20 CET 2013
+	Fixes:
+	- bumped version number to be able to force upgrade when
+	  XML::Compile::WSS was already installed.
+	  Flagged by [Karen Etheridge]
+
 version 0.91: Mon Nov 19 17:17:14 CET 2012
 
 	- canonicalization check fixed.

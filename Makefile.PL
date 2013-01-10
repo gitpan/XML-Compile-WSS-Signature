@@ -5,14 +5,14 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile::WSS::Signature'
- , VERSION	=> '0.91'
+ , VERSION	=> '1.06'
 
  , PREREQ_PM    =>
      { XML::Compile         => '1.29'
      , XML::Compile::Cache  => '0.992'
      , XML::Compile::SOAP   => '2.33'
      , XML::Compile::C14N   => '0.90'
-     , XML::Compile::WSS    => '1.04'
+     , XML::Compile::WSS    => '1.07'
      , Log::Report          => '0.92'
 
      , Encode               => 0
