@@ -352,8 +352,8 @@ See L<XML::Compile::WSS/"Internals">
 
 =head1 SEE ALSO
 
-This module is part of XML-Compile-WSS-Signature distribution version 1.06,
-built on January 10, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
+This module is part of XML-Compile-WSS-Signature distribution version 1.07,
+built on January 14, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
 
 Other distributions in this suite:
 L<XML::Compile>,

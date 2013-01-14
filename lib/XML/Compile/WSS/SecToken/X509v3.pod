@@ -21,7 +21,7 @@ XML::Compile::WSS::SecToken::X509v3 - WSS Security Token X509v3 style
   # Shortest
   $wss->signature(token => $cert, ...);
 
-  # Alternatives
+  # More syntax
   my $token = XML::Compile::WSS::SecToken->new
     ( type        => XTP10_X509v3
     , id          => 'some-wsu-id'
@@ -29,9 +29,7 @@ XML::Compile::WSS::SecToken::X509v3 - WSS Security Token X509v3 style
     );
 
   my $token = XML::Compile::WSS::SecToken::X509v3
-    ->new(cert_file => $cert_fn);
-
-  $wss->signature(token => {cert_file => $cert_fn}, ...);
+    ->fromFile($cert_fn, format => FORMAT_ASN1);
 
 =head1 DESCRIPTION
 
@@ -49,6 +47,27 @@ See F<docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0.pd
 
 =head1 METHODS
 
+=over 4
+
+=item XML::Compile::WSS::SecToken::X509v3-E<gt>B<fromFile>(FILENAME, OPTIONS)
+
+[1.07] read the certificate from a file.  You can pass all OPTIONS provided
+by L<new()|XML::Compile::WSS::SecToken::X509v3/"METHODS"> plus some specific parameters.
+
+ -Option--Default
+  format  FORMAT_PEM
+
+=over 2
+
+=item format => FORMAT_*
+
+The file format is not always auto-detected, so you may need to
+provide it explicition.  The constants are exported by Crypt::OpenSSL::X509
+
+=back
+
+=back
+
 =head2 Constructors
 
 =over 4
@@ -57,7 +76,7 @@ See F<docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0.pd
 
 See L<XML::Compile::WSS::SecToken/"Constructors">
 
-=item XML::Compile::WSS::SecToken::X509v3-E<gt>B<fromConfig>([CONFIG])
+=item XML::Compile::WSS::SecToken::X509v3-E<gt>B<fromConfig>(CONFIG, OPTIONS)
 
 See L<XML::Compile::WSS::SecToken/"Constructors">
 
@@ -67,7 +86,6 @@ Either the C<certificate> object or a C<cert_file> must be specified.
 
  -Option     --Defined in                 --Default
   binary       XML::Compile::WSS::SecToken  undef
-  cert_file                                 undef
   certificate                               undef
   id           XML::Compile::WSS::SecToken  'my-token'
   type         XML::Compile::WSS::SecToken  XTP10_X509v3
@@ -75,8 +93,6 @@ Either the C<certificate> object or a C<cert_file> must be specified.
 =over 2
 
 =item binary => BYTES
-
-=item cert_file => FILENAME
 
 =item certificate => CERTIFICATE
 
@@ -91,6 +107,8 @@ Either the C<certificate> object or a C<cert_file> must be specified.
 =head2 Attributes
 
 =over 4
+
+=item $obj-E<gt>B<certificate>()
 
 =item $obj-E<gt>B<id>()
 
@@ -116,18 +134,10 @@ See L<XML::Compile::WSS::SecToken/"Handlers">
 
 =back
 
-=head2 attributes
-
-=over 4
-
-=item $obj-E<gt>B<certificate>()
-
-=back
-
 =head1 SEE ALSO
 
-This module is part of XML-Compile-WSS-Signature distribution version 1.06,
-built on January 10, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
+This module is part of XML-Compile-WSS-Signature distribution version 1.07,
+built on January 14, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
 
 Other distributions in this suite:
 L<XML::Compile>,

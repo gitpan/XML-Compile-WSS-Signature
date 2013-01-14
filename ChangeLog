@@ -1,7 +1,19 @@
 
 ==== version history of XML::Compile:WSS::Signature
 
+version 1.07: Mon Jan 14 12:53:38 CET 2013
+
+	Changes:
+	- removed ::SecToken::RSA::new() option cert_file, in favor of
+	  new ::fromFile()
+
+	Fixes:
+	- a few important fixes by [Karen Etheridge]
+	- add dependency to Digest::SHA1 to pass regression test 1/20sig*
+	  [cpantesters]
+
 version 1.06: Thu Jan 10 09:02:20 CET 2013
+
 	Fixes:
 	- bumped version number to be able to force upgrade when
 	  XML::Compile::WSS was already installed.

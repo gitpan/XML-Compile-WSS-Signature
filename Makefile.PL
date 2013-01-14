@@ -5,7 +5,7 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile::WSS::Signature'
- , VERSION	=> '1.06'
+ , VERSION	=> '1.07'
 
  , PREREQ_PM    =>
      { XML::Compile         => '1.29'
@@ -17,6 +17,7 @@ WriteMakefile
 
      , Encode               => 0
      , Digest               => 0
+     , Digest::SHA1         => 0        # needed for test t/20sig*
      , Test::More           => 0.54
      , MIME::Base64         => 0
      , File::Basename       => 0

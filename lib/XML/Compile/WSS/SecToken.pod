@@ -52,11 +52,22 @@ Hire me to implement these!
 Convert the information of a binary security token, where DATA is
 produced by the L<XML::Compile|XML::Compile> reader, to a security token.
 
-=item XML::Compile::WSS::SecToken-E<gt>B<fromConfig>([CONFIG])
+=item XML::Compile::WSS::SecToken-E<gt>B<fromConfig>(CONFIG, OPTIONS)
 
 Try to be very flexible.  CONFIG can be a HASH, which could also be
 passed to L<new()|XML::Compile::WSS::SecToken/"Constructors"> directly.  But it can also be various kinds of
 objects.
+
+ -Option--Default
+  type    XTP10_X509v3
+
+=over 2
+
+=item type => CONSTANT
+
+[1.07] the type of the security token.
+
+=back
 
 =item XML::Compile::WSS::SecToken-E<gt>B<new>(OPTIONS)
 
@@ -106,8 +117,8 @@ the Security header.
 
 =head1 SEE ALSO
 
-This module is part of XML-Compile-WSS-Signature distribution version 1.06,
-built on January 10, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
+This module is part of XML-Compile-WSS-Signature distribution version 1.07,
+built on January 14, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
 
 Other distributions in this suite:
 L<XML::Compile>,

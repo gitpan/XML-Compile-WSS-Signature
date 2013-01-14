@@ -19,8 +19,10 @@ BEGIN {
     eval "require Crypt::OpenSSL::RSA";
     $@ and plan skip_all => "Crypt::OpenSSL::RSA not installed";
 
-    plan tests => 1;
+    plan tests => 2;
 }
+
+require XML::Compile::WSS::SecToken::X509v3;
 
 my $ns        = "http://example.net/";
 my $wsdlfn    = 't/20any.wsdl';
@@ -40,12 +42,15 @@ my $output_xml = 'example.xml';
 my $wss  = XML::Compile::SOAP::WSS->new;
 my $wsdl = XML::Compile::WSDL11->new($wsdlfn);
 
-my $sig  = $wss->signature
+my $token =  XML::Compile::WSS::SecToken::X509v3->fromFile($certfn);
+isa_ok($token, 'XML::Compile::WSS::SecToken::X509v3');
+
+my $sig   = $wss->signature
   ( digest_method   => DSIG_SHA1          # default
   , signer          => DSIG_RSA_SHA1      # default
   , canon_method    => C14N_EXC_NO_COMM   # default
   , private_key     => $privkeyfn
-  , token           => {cert_file => $certfn}
+  , token           => $token
   );
 
 $wsdl->compileCalls(transport_hook => \&fake_server);

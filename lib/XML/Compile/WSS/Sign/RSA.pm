@@ -1,13 +1,13 @@
 # Copyrights 2012-2013 by [Mark Overmeer].
 #  For other contributors see ChangeLog.
 # See the manual pages for details on the licensing terms.
-# Pod stripped from pm file by OODoc 2.00.
+# Pod stripped from pm file by OODoc 2.01.
 use warnings;
 use strict;
 
 package XML::Compile::WSS::Sign::RSA;
 use vars '$VERSION';
-$VERSION = '1.06';
+$VERSION = '1.07';
 
 use base 'XML::Compile::WSS::Sign';
 
@@ -41,7 +41,7 @@ sub privateKey(;$)
 
     my ($key, $rsa);
     if(blessed $priv && $priv->isa('Crypt::OpenSSL::RSA'))
-    {   ($key, $rsa) = ($rsa->get_private_key_string, $priv);
+    {   ($key, $rsa) = ($priv->get_private_key_string, $priv);
     }
     elsif(ref $priv)
     {   error __x"unrecognized private key object `{object}'", object => $priv;
@@ -103,7 +103,7 @@ sub sign(@)
 {   my ($self, $reftext) = @_;
     my $priv = $self->privateKeyRSA
         or error "signing rsa requires the private_key";
-    $priv->sign($reftext);
+    $priv->sign($$reftext);
 }
 
 

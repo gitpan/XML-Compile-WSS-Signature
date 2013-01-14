@@ -1,13 +1,13 @@
 # Copyrights 2012-2013 by [Mark Overmeer].
 #  For other contributors see ChangeLog.
 # See the manual pages for details on the licensing terms.
-# Pod stripped from pm file by OODoc 2.00.
+# Pod stripped from pm file by OODoc 2.01.
 use warnings;
 use strict;
 
 package XML::Compile::WSS::SecToken;
 use vars '$VERSION';
-$VERSION = '1.06';
+$VERSION = '1.07';
 
 
 use Log::Report 'xml-compile-wss-sig';
@@ -21,7 +21,7 @@ sub new(@)
     my $args  = @_==1 ? shift : {@_};
     my $type  = delete $args->{type} || XTP10_X509v3;
     if($class eq __PACKAGE__)
-    {   if($type eq XTP10_X509v3)
+    {   if($type =~ /509/)
         {   eval "require XML::Compile::WSS::SecToken::X509v3"; panic $@ if $@;
             $class = 'XML::Compile::WSS::SecToken::X509v3';
         }
@@ -40,9 +40,10 @@ sub init($)
 }
 
 
-sub fromConfig($)
-{   my ($class, $config) = @_;
-    return $class->new($config)
+sub fromConfig($%)
+{   my ($class, $config, %args) = @_;
+    $args{type} ||= XTP10_X509v3;
+    return $class->new(%$config, %args)
         if ref $config eq 'HASH';
 
     blessed $config
@@ -51,7 +52,7 @@ sub fromConfig($)
     return $config
         if $config->isa(__PACKAGE__);
 
-    return $class->new(type => XTP10_X509v3, certificate => $config)
+    return $class->new(%args, certificate => $config)
         if ref $config =~ m/::X509/;  # there are a few options here
 
     panic "token configuration `$config' not recognized";
@@ -60,6 +61,7 @@ sub fromConfig($)
 
 sub fromBinSecToken($$)
 {   my ($class, $wss, $data) = @_;
+    my $id  = $data->{wsu_Id};
     my $key = $data->{_};
     my $enc = $data->{EncodingType};
 
@@ -67,7 +69,7 @@ sub fromBinSecToken($$)
     elsif($enc eq WSM10_BASE64) { $key = decode_base64 $key }
     else {error __x"unsupported data encoding {type} received", type => $enc}
 
-    $class->new(type => $data->{ValueType}, binary => $key);
+    $class->new(id => $id, type => $data->{ValueType}, binary => $key);
 }
 
 #-----------------
