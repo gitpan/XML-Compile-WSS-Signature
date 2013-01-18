@@ -33,4 +33,4 @@ requires:
   XML::Compile::Cache: 0.992
   XML::Compile::SOAP: 2.33
   XML::Compile::WSS: 1.07
-version: 1.07
+version: 1.08

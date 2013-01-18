@@ -59,6 +59,7 @@ my ($out, $trace) = $wsdl->call($anyop, One => 1, Two => 2, Three => 3);
 #warn Dumper $out;
 $trace->printErrors;
 #$trace->printResponse;
+#my ($out2, $trace2) = $wsdl->call($anyop, One => 1, Two => 2, Three => 3);
 
 ok(1, 'passed');
 exit 0;

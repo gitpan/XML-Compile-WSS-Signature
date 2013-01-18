@@ -280,11 +280,6 @@ but before the SignedInfo object gets serialized.
 Returns a HASH with (wsu-id, node) pairs to be checked.  The administration
 is reset with this action.
 
-=item $obj-E<gt>B<elementsToSign>()
-
-Returns an ARRAY of all NODES which need to be signed.  This will
-also reset the administration.
-
 =item $obj-E<gt>B<signElement>(NODE, OPTIONS)
 
 Add an element to be the list of NODEs to be signed.  For instance,
@@ -307,6 +302,11 @@ specified, one is generated.
 
 Returns to L<XML::Compile::WSS::Sign|XML::Compile::WSS::Sign> which is used by the client
 to sign the messages to be sent.
+
+=item $obj-E<gt>B<takeElementsToSign>()
+
+Returns an ARRAY of all NODES which need to be signed.  This will
+also reset the administration.
 
 =back
 
@@ -352,8 +352,8 @@ See L<XML::Compile::WSS/"Internals">
 
 =head1 SEE ALSO
 
-This module is part of XML-Compile-WSS-Signature distribution version 1.07,
-built on January 14, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
+This module is part of XML-Compile-WSS-Signature distribution version 1.08,
+built on January 18, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
 
 Other distributions in this suite:
 L<XML::Compile>,

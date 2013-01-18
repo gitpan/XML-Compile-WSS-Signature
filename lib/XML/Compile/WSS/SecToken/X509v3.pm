@@ -7,7 +7,7 @@ use strict;
 
 package XML::Compile::WSS::SecToken::X509v3;
 use vars '$VERSION';
-$VERSION = '1.07';
+$VERSION = '1.08';
 
 use base 'XML::Compile::WSS::SecToken';
 

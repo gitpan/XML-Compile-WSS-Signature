@@ -1,6 +1,15 @@
 
 ==== version history of XML::Compile:WSS::Signature
 
+version 1.08: Fri Jan 18 13:37:45 CET 2013
+	Changes:
+	- elementsToSign() -> takeElementsToSign()
+
+	Fixes:
+	- second message had two Referer blocks to TheBody.
+	  reported and debugged by [Karen Etheridge]
+	- support filenames as objects in ::Sign::RSA.
+
 version 1.07: Mon Jan 14 12:53:38 CET 2013
 
 	Changes:

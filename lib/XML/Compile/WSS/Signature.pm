@@ -7,7 +7,7 @@ use strict;
 
 package XML::Compile::WSS::Signature;
 use vars '$VERSION';
-$VERSION = '1.07';
+$VERSION = '1.08';
 
 use base 'XML::Compile::WSS';
 
@@ -250,7 +250,7 @@ sub signElement(%)
 }
 
 
-sub elementsToSign() { delete shift->{XCWS_to_sign} || [] }
+sub takeElementsToSign() { delete shift->{XCWS_to_sign} || [] }
 
 
 sub checkElement($%)
@@ -446,8 +446,9 @@ sub prepareWriting($)
 
     $self->{XCWS_sign} = sub {
         my ($doc, $sec) = @_;
-        return $sec if $sec->{$sigt};
-        my $info      = $fill_signed_info->($doc, $self->elementsToSign);
+        my $to_sign   = $self->takeElementsToSign;
+        return $sec if $sec->{$sigt};           # signature already produced?
+        my $info      = $fill_signed_info->($doc, $to_sign);
         my $info_node = $self->_repair_xml($infow->($doc, $info), 'SOAP-ENV');
         my $signature = $signer->sign(\$canonical->($info_node));
 #warn "Sign %3 ",$canonical->($info_node);
