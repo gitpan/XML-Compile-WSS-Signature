@@ -1,6 +1,10 @@
 
 ==== version history of XML::Compile:WSS::Signature
 
+version 1.09:
+	Fixes:
+	- receive messages without PrefixList  [Karen Etheridge]
+
 version 1.08: Fri Jan 18 13:37:45 CET 2013
 	Changes:
 	- elementsToSign() -> takeElementsToSign()

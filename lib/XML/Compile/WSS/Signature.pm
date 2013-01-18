@@ -7,7 +7,7 @@ use strict;
 
 package XML::Compile::WSS::Signature;
 use vars '$VERSION';
-$VERSION = '1.08';
+$VERSION = '1.09';
 
 use base 'XML::Compile::WSS';
 
@@ -109,9 +109,13 @@ sub digest($$)
 sub _digest_elem_check($$)
 {   my ($self, $elem, $ref) = @_;
     my $transf   = $ref->{ds_Transforms}{ds_Transform}[0]; # only 1 transform
-    my ($inclns, $preflist) = %{$transf->{cho_any}[0]};    # only 1 kv pair
-    my $elem_c14n = $self
-        ->applyCanon($transf->{Algorithm}, $elem, $preflist->{PrefixList});
+    my $prefixes = [];
+    if(my $r = $transf->{cho_any})
+    {   my ($inclns, $preflist) = %{$r->[0]};    # only 1 kv pair
+        $prefixes = $preflist->{PrefixList};
+    }
+
+    my $elem_c14n = $self->applyCanon($transf->{Algorithm}, $elem, $prefixes);
 
     my $digmeth = $ref->{ds_DigestMethod}{Algorithm} || '(none)';
     $self->digest($digmeth, \$elem_c14n) eq $ref->{ds_DigestValue};

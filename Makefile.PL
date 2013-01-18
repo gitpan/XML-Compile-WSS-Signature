@@ -5,7 +5,7 @@ use 5.008;
 
 WriteMakefile
  ( NAME	 	=> 'XML::Compile::WSS::Signature'
- , VERSION	=> '1.08'
+ , VERSION	=> '1.09'
 
  , PREREQ_PM    =>
      { XML::Compile         => '1.29'

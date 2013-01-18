@@ -7,7 +7,7 @@ use strict;
 
 package XML::Compile::WSS::Sign::RSA;
 use vars '$VERSION';
-$VERSION = '1.08';
+$VERSION = '1.09';
 
 use base 'XML::Compile::WSS::Sign';
 
