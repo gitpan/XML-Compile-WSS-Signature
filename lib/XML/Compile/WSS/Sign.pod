@@ -1,3 +1,5 @@
+=encoding utf8
+
 =head1 NAME
 
 XML::Compile::WSS::Sign - Base for WSS Signers
@@ -5,6 +7,7 @@ XML::Compile::WSS::Sign - Base for WSS Signers
 =head1 INHERITANCE
 
  XML::Compile::WSS::Sign is extended by
+   XML::Compile::WSS::Sign::HMAC
    XML::Compile::WSS::Sign::RSA
 
 =head1 SYNOPSIS
@@ -12,7 +15,7 @@ XML::Compile::WSS::Sign - Base for WSS Signers
   # either
   use XML::Compile::WSS::Util qw/DSIG_RSA_SHA1/;
   my $sign = XML::Compile::WSS::Sign->new
-    ( type        => DSIG_RSA_SHA1
+    ( sign_method        => DSIG_RSA_SHA1
     , private_key => $key
     , ...
     );
@@ -43,7 +46,7 @@ Hire me to implement other signers!
 
 =over 4
 
-=item XML::Compile::WSS::Sign-E<gt>B<fromConfig>(CONFIG, [PRIVKEY])
+=item XML::Compile::WSS::Sign-E<gt>B<fromConfig>(HASH|PAIRS)
 
 Try to be very flexible.  CONFIG can be a HASH, which could also be
 passed to L<new()|XML::Compile::WSS::Sign/"Constructors"> directly.  But it can also be various kinds of
@@ -51,12 +54,12 @@ objects.
 
 =item XML::Compile::WSS::Sign-E<gt>B<new>(OPTIONS)
 
- -Option--Default
-  type    DSIG_RSA_SHA1
+ -Option     --Default
+  sign_method  DSIG_RSA_SHA1
 
 =over 2
 
-=item type => TYPE
+=item sign_method => TYPE
 
 =back
 
@@ -66,7 +69,7 @@ objects.
 
 =over 4
 
-=item $obj-E<gt>B<type>()
+=item $obj-E<gt>B<signMethod>()
 
 =back
 
@@ -74,14 +77,9 @@ objects.
 
 =over 4
 
-=item $obj-E<gt>B<check>(TOKEN, ref-BYTES, SIGNATURE)
+=item $obj-E<gt>B<builder>()
 
-Use TOKEN to check whether the BYTES (passed by reference) match the
-SIGNATURE.  TOKEN is signer specific.
-
-=item $obj-E<gt>B<sign>(ref-BYTES)
-
-Returns a SIGNATURE
+=item $obj-E<gt>B<checker>()
 
 =back
 
@@ -113,8 +111,8 @@ unless you hard-code the remote's public key.
 
 =head1 SEE ALSO
 
-This module is part of XML-Compile-WSS-Signature distribution version 1.09,
-built on January 18, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
+This module is part of XML-Compile-WSS-Signature distribution version 2.01,
+built on October 11, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
 
 Other distributions in this suite:
 L<XML::Compile>,
@@ -129,14 +127,12 @@ L<XML::Compile::Tester>,
 L<XML::Compile::Cache>,
 L<XML::Compile::Dumper>,
 L<XML::Compile::RPC>,
-L<XML::Rewrite>,
-L<XML::eXistDB>,
+L<XML::Rewrite>
 and
 L<XML::LibXML::Simple>.
 
 Please post questions or ideas to the mailinglist at
-F<http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/xml-compile>
-
+F<http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/xml-compile> .
 For live contact with other developers, visit the C<#xml-compile> channel
 on C<irc.perl.org>.
 

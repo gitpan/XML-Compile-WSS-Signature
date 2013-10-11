@@ -2,108 +2,79 @@
 
 =head1 NAME
 
-XML::Compile::WSS::SecToken::X509v3 - WSS Security Token X509v3 style
+XML::Compile::WSS::SecToken::EncrKey - WSS Encrypted Keys
 
 =head1 INHERITANCE
 
- XML::Compile::WSS::SecToken::X509v3
+ XML::Compile::WSS::SecToken::EncrKey
    is a XML::Compile::WSS::SecToken
 
 =head1 SYNOPSIS
 
-  # Most verbose
-  my $certfn = 'cert.pem';
-  my $cert   = Crypt::OpenSSL::X509->new_from_file($certfn);
-  my $token  = XML::Compile::WSS::SecToken::X509v3->new
-    ( id          => 'some-wsu-id'
-    , certificate => $cert
-    );
-  $wss->sigature(token => $token, ...);
-
-  # Shortest
-  $wss->signature(token => $cert, ...);
-
-  # More syntax
-  my $token = XML::Compile::WSS::SecToken->new
-    ( type        => XTP10_X509v3
-    , id          => 'some-wsu-id'
-    , certificate => $cert
-    );
-
-  my $token = XML::Compile::WSS::SecToken::X509v3
-    ->fromFile($cert_fn, format => FORMAT_ASN1);
-
 =head1 DESCRIPTION
 
-Use an X509 certificate as security token.
-
-CPAN lists a few modules which wrap a X509 certificate, for the
-moment only Crypt::OpenSSL::X509 is supported, patches for other
-implementations are welcomed.
-
-See F<docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0.pdf>
-
 See L<documentation in the base class|XML::Compile::WSS::SecToken/"DESCRIPTION">.
+ 
+=head2 Supported token types
+
+=over 4
+
+=item * AEOP
+
+=back
+
+See L<documentation in the base class|XML::Compile::WSS::SecToken/"Supported token types">.
+ 
+=head2 Not supporter (yet)
+
+See L<documentation in the base class|XML::Compile::WSS::SecToken/"Not supporter (yet)">.
  
 =head1 METHODS
 
 See L<documentation in the base class|XML::Compile::WSS::SecToken/"METHODS">.
  
-=over 4
-
-=item XML::Compile::WSS::SecToken::X509v3-E<gt>B<fromFile>(FILENAME, OPTIONS)
-
-[1.07] read the certificate from a file.  You can pass all OPTIONS provided
-by L<new()|XML::Compile::WSS::SecToken::X509v3/"METHODS"> plus some specific parameters.
-
- -Option--Default
-  format  FORMAT_PEM
-
-=over 2
-
-=item format => FORMAT_*
-
-The file format is not always auto-detected, so you may need to
-provide it explicition.  The constants are exported by Crypt::OpenSSL::X509
-
-=back
-
-=back
-
 =head2 Constructors
 
 See L<documentation in the base class|XML::Compile::WSS::SecToken/"Constructors">.
  
 =over 4
 
-=item XML::Compile::WSS::SecToken::X509v3-E<gt>B<fromConfig>(CONFIG, OPTIONS)
+=item XML::Compile::WSS::SecToken::EncrKey-E<gt>B<fromConfig>(CONFIG, OPTIONS)
 
 See L<XML::Compile::WSS::SecToken/"Constructors">
 
-=item XML::Compile::WSS::SecToken::X509v3-E<gt>B<new>(OPTIONS)
-
-Either the C<certificate> object or a C<cert_file> must be specified.
+=item XML::Compile::WSS::SecToken::EncrKey-E<gt>B<new>(OPTIONS)
 
  -Option     --Defined in                 --Default
   binary       XML::Compile::WSS::SecToken  undef
-  certificate                               undef
   encoding     XML::Compile::WSS::SecToken  WSM10_BASE64
-  fingerprint  XML::Compile::WSS::SecToken  <from certificate>
+  fingerprint  XML::Compile::WSS::SecToken  undef
   id           XML::Compile::WSS::SecToken  'my-token'
-  type         XML::Compile::WSS::SecToken  XTP10_X509v3
+  key                                       <required>
+  key_info                                  <constructed>
+  signer                                    <required>
+  type         XML::Compile::WSS::SecToken  XENC_RSA_OAEP
   uri          XML::Compile::WSS::SecToken  <unique>
 
 =over 2
 
 =item binary => BYTES
 
-=item certificate => CERTIFICATE
-
 =item encoding => WSM10*
 
 =item fingerprint => STRING
 
 =item id => wsu::Id
+
+=item key => STRING
+
+The binary key used to sign.
+
+=item key_info => HASH
+
+=item signer => HASH|L<XML::Compile::WSS::Sign|XML::Compile::WSS::Sign>-object
+
+This signer encrypts the key which use used, for instance, in HMAC.
 
 =item type => TOKENTYPE
 
@@ -119,8 +90,6 @@ See L<documentation in the base class|XML::Compile::WSS::SecToken/"Attributes">.
  
 =over 4
 
-=item $obj-E<gt>B<certificate>()
-
 =item $obj-E<gt>B<encoding>()
 
 See L<XML::Compile::WSS::SecToken/"Attributes">
@@ -132,6 +101,12 @@ See L<XML::Compile::WSS::SecToken/"Attributes">
 =item $obj-E<gt>B<id>()
 
 See L<XML::Compile::WSS::SecToken/"Attributes">
+
+=item $obj-E<gt>B<key>()
+
+=item $obj-E<gt>B<keyInfo>()
+
+=item $obj-E<gt>B<signer>()
 
 =item $obj-E<gt>B<type>()
 
@@ -148,6 +123,17 @@ See L<documentation in the base class|XML::Compile::WSS::SecToken/"Handlers">.
 =item $obj-E<gt>B<asBinary>()
 
 See L<XML::Compile::WSS::SecToken/"Handlers">
+
+=item XML::Compile::WSS::SecToken::EncrKey-E<gt>B<getChecker>(WSS, OPTIONS)
+
+=item XML::Compile::WSS::SecToken::EncrKey-E<gt>B<getEncrypter>(WSS, OPTIONS)
+
+Not for end-users.  Returns the CODE which returns the object which
+handles encryption or decryption of the key.
+
+=item XML::Compile::WSS::SecToken::EncrKey-E<gt>B<getKey>(WSS, OPTIONS)
+
+Not for end-users.  Returns the CODE to produce the decrypted key.
 
 =back
 

@@ -1,3 +1,5 @@
+=encoding utf8
+
 =head1 NAME
 
 XML::Compile::WSS::Sign::RSA - WSS Signing with RSA
@@ -18,33 +20,42 @@ XML::Compile::WSS::Sign::RSA - WSS Signing with RSA
   my $token = XML::Compile::WSS::Sign::RSA->new(
      hashing => 'SHA1', ...);
 
+=head1 DESCRIPTION
+
+See L<documentation in the base class|XML::Compile::WSS::Sign/"DESCRIPTION">.
+ 
 =head1 METHODS
 
+See L<documentation in the base class|XML::Compile::WSS::Sign/"METHODS">.
+ 
 =head2 Constructors
 
+See L<documentation in the base class|XML::Compile::WSS::Sign/"Constructors">.
+ 
 =over 4
 
-=item XML::Compile::WSS::Sign::RSA-E<gt>B<fromConfig>(CONFIG, [PRIVKEY])
+=item XML::Compile::WSS::Sign::RSA-E<gt>B<fromConfig>(HASH|PAIRS)
 
 See L<XML::Compile::WSS::Sign/"Constructors">
 
 =item XML::Compile::WSS::Sign::RSA-E<gt>B<new>(OPTIONS)
 
  -Option     --Defined in             --Default
-  hashing                               <derived from type>
+  hashing                               <undef>
+  padding                               <undef>
   private_key                           undef
   public_key                            <from private key>
-  type         XML::Compile::WSS::Sign  DSIG_RSA_SHA1
+  sign_method  XML::Compile::WSS::Sign  DSIG_RSA_SHA1
 
 =over 2
 
-=item hashing => STRING
+=item hashing => 'SHA1'|'MD5'|...
 
-For instance, C<SHA1>.
+=item padding => 'NO'|'PKCS1'|...
 
 =item private_key => OBJECT|STRING|FILENAME
 
-Required if you want to use this object to L<sign()|XML::Compile::WSS::Sign/"Handlers">. See L<privateKey()|XML::Compile::WSS::Sign::RSA/"Attributes">
+Required if you want to use this object to sign. See L<privateKey()|XML::Compile::WSS::Sign::RSA/"Attributes">
 
 =item public_key => OBJECT|STRING|FILENAME
 
@@ -53,7 +64,7 @@ Usually, you need either the public or the private key, not both.  However,
 when you specify a private key, you can ask for the public key as well: it
 is included.
 
-=item type => TYPE
+=item sign_method => TYPE
 
 =back
 
@@ -61,14 +72,14 @@ is included.
 
 =head2 Attributes
 
+See L<documentation in the base class|XML::Compile::WSS::Sign/"Attributes">.
+ 
 =over 4
 
-=item $obj-E<gt>B<hashing>()
-
-=item $obj-E<gt>B<privateKey>([KEY, [HASHING]])
+=item $obj-E<gt>B<privateKey>([KEY, OPTIONS])
 
 The private key must be set with L<new(private_key)|XML::Compile::WSS::Sign::RSA/"Constructors"> or this method before
-you can L<sign()|XML::Compile::WSS::Sign/"Handlers">.  This method will return the text of the key.
+you can sign.  This method will return the text of the key.
 
 =over 4
 
@@ -80,11 +91,25 @@ you can L<sign()|XML::Compile::WSS::Sign/"Handlers">.  This method will return t
 
 =back
 
+ -Option --Default
+  hashing  <undef>
+  padding  <undef>
+
+=over 2
+
+=item hashing => 'SHA1'|'MD5'|'RIPEMD160'|...
+
+Enforce an hashing setting on the KEY.
+
+=item padding => 'NO'|'PKCS1'|'PKCS1_OAEP'|'SSLv23'
+
+=back
+
 =item $obj-E<gt>B<privateKeyRSA>()
 
 Returns the private key wrapped in a Crypt::OpenSSL::RSA object.
 
-=item $obj-E<gt>B<publicKey>([KEY])
+=item $obj-E<gt>B<publicKey>([KEY, [OPTIONS]])
 
 Set the public key.  You can pass a KEY, which is one of
 
@@ -104,34 +129,33 @@ Returns the Crypt::OpenSSL::RSA-wrapped public key.
 
 =item $obj-E<gt>B<publicKeyString>('PKCS1'|'X509')
 
-=item $obj-E<gt>B<type>()
+=item $obj-E<gt>B<signMethod>()
 
 See L<XML::Compile::WSS::Sign/"Attributes">
+
+=item $obj-E<gt>B<toPrivateSHA>(PRIVATE-KEY)
+
+=item XML::Compile::WSS::Sign::RSA-E<gt>B<toPrivateSHA>(PRIVATE-KEY)
+
+=item $obj-E<gt>B<toPublicRSA>(OBJECT)
+
+=item XML::Compile::WSS::Sign::RSA-E<gt>B<toPublicRSA>(OBJECT)
 
 =back
 
 =head2 Handlers
 
+See L<documentation in the base class|XML::Compile::WSS::Sign/"Handlers">.
+ 
 =over 4
 
-=item $obj-E<gt>B<check>(ref-BYTES, SIGNATURE)
+=item $obj-E<gt>B<builder>()
 
-Use TOKEN to check whether the BYTES (passed by reference) match the
-SIGNATURE.
+See L<XML::Compile::WSS::Sign/"Handlers">
 
-For RSA signing, the token can be
+=item $obj-E<gt>B<check>(BYTES, SIGNATURE)
 
-=over 4
-
-=item * a Crypt::OpenSSL::RSA object
-
-=item * a Crypt::OpenSSL::X509 object
-
-=item * a L<XML::Compile::WSS::SecToken::X509v3|XML::Compile::WSS::SecToken::X509v3> object
-
-=back
-
-=item $obj-E<gt>B<sign>(ref-BYTES)
+=item $obj-E<gt>B<checker>()
 
 See L<XML::Compile::WSS::Sign/"Handlers">
 
@@ -141,10 +165,16 @@ See L<XML::Compile::WSS::Sign/"Handlers">
 
 Read DETAILS in L<XML::Compile::WSS::Sign|XML::Compile::WSS::Sign> first.
 
+See L<documentation in the base class|XML::Compile::WSS::Sign/"DETAILS">.
+ 
 =head2 Signing, the generic part
 
+See L<documentation in the base class|XML::Compile::WSS::Sign/"Signing, the generic part">.
+ 
 =head2 Defend against man-in-the-middle
 
+See L<documentation in the base class|XML::Compile::WSS::Sign/"Defend against man-in-the-middle">.
+ 
 =head2 Signing with RSA
 
 =head3 Limitations
@@ -170,8 +200,8 @@ constant for that in the standards.
 
 =head1 SEE ALSO
 
-This module is part of XML-Compile-WSS-Signature distribution version 1.09,
-built on January 18, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
+This module is part of XML-Compile-WSS-Signature distribution version 2.01,
+built on October 11, 2013. Website: F<http://perl.overmeer.net/xml-compile/>
 
 Other distributions in this suite:
 L<XML::Compile>,
@@ -186,14 +216,12 @@ L<XML::Compile::Tester>,
 L<XML::Compile::Cache>,
 L<XML::Compile::Dumper>,
 L<XML::Compile::RPC>,
-L<XML::Rewrite>,
-L<XML::eXistDB>,
+L<XML::Rewrite>
 and
 L<XML::LibXML::Simple>.
 
 Please post questions or ideas to the mailinglist at
-F<http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/xml-compile>
-
+F<http://lists.scsys.co.uk/cgi-bin/mailman/listinfo/xml-compile> .
 For live contact with other developers, visit the C<#xml-compile> channel
 on C<irc.perl.org>.
 

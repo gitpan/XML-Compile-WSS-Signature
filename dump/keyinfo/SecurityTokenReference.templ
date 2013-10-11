@@ -1,0 +1,31 @@
+# Describing complex wsse:SecurityTokenReference
+#     {http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd}SecurityTokenReference
+#
+# Produced by XML::Compile::Translate::Template version undef
+#          on Fri Oct 11 15:53:31 2013
+#
+# BE WARNED: in most cases, the example below cannot be used without
+# interpretation.  The comments will guide you.
+#
+# xmlns:wsse      http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd
+# xmlns:wsu       http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd
+# xmlns:xsd       http://www.w3.org/2001/XMLSchema
+
+# is a wsse:SecurityTokenReferenceType
+{ # choice of ANY
+  # occurs any number of times
+  cho_any => 
+  [ {
+      # any element in any namespace
+      ANY => "Anything", },
+  ],
+
+  # is a xsd:ID
+  wsu_Id => "id_0",
+
+  # is a xsd:anyURI
+  # a list of values, where each
+  Usage => [ "http://example.com" , ... ],
+
+  # any attribute not in wsse:
+  ANYATTR => "AnySimple", }

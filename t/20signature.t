@@ -2,6 +2,8 @@
 use warnings;
 use strict;
 
+use lib '../XMLWSS/lib', 'lib';
+
 use XML::Compile::WSDL11;
 use XML::Compile::SOAP11;
 use XML::Compile::Transport::SOAPHTTP;
@@ -64,7 +66,6 @@ $trace->printErrors;
 ok(1, 'passed');
 exit 0;
 
-### FROM HERE ON JUST AS DEMO
 sub fake_server($$)
 {  my ($request, $trace) = @_;
    my $content = $request->decoded_content;

@@ -7,498 +7,332 @@ use strict;
 
 package XML::Compile::WSS::Signature;
 use vars '$VERSION';
-$VERSION = '1.09';
+$VERSION = '2.01';
 
 use base 'XML::Compile::WSS';
 
 use Log::Report 'xml-compile-wss-sig';
 
 use XML::Compile::WSS::Util     qw/:wss11 :wsm10 :dsig :xtp10/;
-use XML::Compile::C14N          ();
-use XML::Compile::C14N::Util    qw/:c14n/;
 use XML::Compile::WSS::SecToken ();
 use XML::Compile::WSS::Sign     ();
+use XML::Compile::WSS::KeyInfo  ();
+use XML::Compile::WSS::SignedInfo ();
+
+use XML::Compile::C14N::Util    qw/:c14n/;
+use XML::Compile::C14N          ();
 
 use Digest          ();
 use XML::LibXML     ();
 use File::Basename  qw/dirname/;
+use File::Glob      qw/bsd_glob/;
+use Scalar::Util    qw/blessed/;
 
-my $unique = $$.time;
-my @default_canon_ns = qw/ds wsu xenc SOAP-ENV/;
-my @prefixes = (dsig11 => DSIG11_NS, dsp => DSP_NS, dsigm => DSIG_MORE_NS);
+my %prefixes =
+  ( # ds=DSIG_NS defined in ::WSS
+    dsig11 => DSIG11_NS
+  , dsp    => DSP_NS
+  , dsigm  => DSIG_MORE_NS
+  , xenc   => XENC_NS
+  );
 
 #use Data::Dumper;
 #$Data::Dumper::Indent    = 1;
 #$Data::Dumper::Quotekeys = 0;
 
-my ($digest_algorithm, $sign_algorithm);
-{  my ($signs, $sigmns) = (DSIG_NS, DSIG_MORE_NS);
-   # the digest algorithms can be distiguish by pure lowercase, no dash.
-   $digest_algorithm = qr/^(?:$signs|$sigmns)([a-z0-9]+)$/;
-}
-
 
 sub init($)
 {   my ($self, $args) = @_;
-    $args->{wss_version} ||= '1.1';
+    my $wss_v = $args->{wss_version} ||= '1.1';
 
     $self->SUPER::init($args);
 
-    # Run digest to initialize modules (and detect what is not installed)
-    # Usually client and server use the same algorithms
-    my $digest = $self->{XCWS_digmeth}  = $args->{digest_method} || DSIG_SHA1;
-    $self->digest($digest, \"test digest");
+    my $signer  = delete $args->{signer} || {};
+    blessed $signer || ref $signer
+        or $signer  = { sign_method => $signer };            # pre 2.00
+    $signer->{$_} ||= delete $args->{$_}                     # pre 2.00
+        for qw/private_key/;
+    $self->{XCWS_signer}  = XML::Compile::WSS::Sign
+      ->fromConfig(%$signer, wss => $self);
 
-    my $schema = $self->schema or panic;
-    my $c14n   = XML::Compile::C14N->new(version => '1.1', schema => $schema);
+    my $si      = delete $args->{signed_info} || {};
+    $si->{$_} ||= delete $args->{$_}
+        for qw/digest_method cannon_method prefix_list/;     # pre 2.00
 
-    $self->_make_canon
-      ( $c14n
-      , $args->{canon_method} || C14N_EXC_NO_COMM
-      , $args->{prefix_list}  || \@default_canon_ns
-      );
+    $self->{XCWS_siginfo} = XML::Compile::WSS::SignedInfo
+      ->fromConfig(%$si, wss => $self);
 
-    my $publ_token = $args->{publish_token} || 'INCLUDE_BY_REF';
-    my $token      = $self->{XCWS_token}  # usually an ::X509
-                   = XML::Compile::WSS::SecToken->fromConfig($args->{token});
-    $self->_make_publish_token($token, $publ_token);
-    $self->_make_key_info($token, $publ_token);
+    my $ki      = delete $args->{key_info} || {};
+    $ki->{$_} ||= delete $args->{$_}
+        for qw/publish_token/;                               # pre 2.00
 
-    my $sign_method = $args->{signer} || DSIG_RSA_SHA1;
-    my $priv_key    = $args->{private_key}
-        or error __x"private_key required";
+    $self->{XCWS_keyinfo} = XML::Compile::WSS::KeyInfo
+      ->fromConfig(%$ki, wss => $self);
 
-    $self->_make_signer($sign_method, $priv_key);
-    $self->_make_checker($args->{checker}) if $args->{checker};
-
-    if(my $r = $args->{remote_token})
-    {   $self->{XCWS_rem_token} = XML::Compile::WSS::SecToken->fromConfig($r);
+    if(my $subsig = delete $args->{signature})
+    {   $self->{XCWS_subsig} = (ref $self)->new(wss_version => $wss_v
+          , schema => $self->schema, %$subsig);
     }
 
+    $self->{XCWS_token}    = $args->{token};
+
+    $self->{XCWS_config}   = $args;  # the left-overs are for me
     $self;
 }
 
 #-----------------------------
 
 
-sub defaultDigestMethod() { shift->{XCWS_digmeth} }
-
-
-sub digester($)
-{   my ($self, $method) = @_;
-    $method =~ $digest_algorithm
-        or error __x"digest {name} is not a correct constant";
-    my $algo = uc $1;
-
-    sub {
-        my $data = shift;
-        my $digest = try { my $d = Digest->new($algo)->add($$data)->digest };
-        $@ or return $digest;
-
-        error __x"cannot use digest method {short}, constant {name}: {err}"
-          , short => $algo, name => $method, err => $@->wasFatal;
-    };
-}
-
-
-sub digest($$)
-{   my ($self, $method, $text) = @_;
-    $self->digester($method)->($text);
-}
-
-sub _digest_elem_check($$)
-{   my ($self, $elem, $ref) = @_;
-    my $transf   = $ref->{ds_Transforms}{ds_Transform}[0]; # only 1 transform
-    my $prefixes = [];
-    if(my $r = $transf->{cho_any})
-    {   my ($inclns, $preflist) = %{$r->[0]};    # only 1 kv pair
-        $prefixes = $preflist->{PrefixList};
-    }
-
-    my $elem_c14n = $self->applyCanon($transf->{Algorithm}, $elem, $prefixes);
-
-    my $digmeth = $ref->{ds_DigestMethod}{Algorithm} || '(none)';
-    $self->digest($digmeth, \$elem_c14n) eq $ref->{ds_DigestValue};
-}
-#-----------------------------
-
-
-# produces a sub which does correct canonicalization.
-sub _make_canon($$$)
-{   my ($self, $c14n, $method, $prefixes) = @_;
-    $self->{XCWS_c14n}       = $c14n;
-    $self->{XCWS_canonmeth}  = $method;
-    $self->{XCWS_prefixlist} = $prefixes;
-    $self->{XCWS_do_canon}   = sub
-      { my $node = shift or return '';
-        $c14n->normalize($method, $node, prefix_list => $prefixes);
-      };
-}
-
-
-sub canonicalizer() {shift->{XCWS_do_canon}}
-sub defaultCanonMethod() {shift->{XCWS_canonmeth}}
-sub defaultPrefixList() {shift->{XCWS_prefixlist}}
-sub c14n() {shift->{XCWS_c14n}}
-
-
-sub applyCanon($$$)
-{   my ($self, $algo, $elem, $prefixlist) = @_;
-    $self->c14n->normalize($algo, $elem, prefix_list => $prefixlist);
-}
-
-# XML::Compile has to trick with prefixes, because XML::LibXML does not
-# permit the creation of nodes with explicit prefix, only by namespace.
-# The next can be slow and is ugly, Sorry.  MO
-sub _repair_xml($$@)
-{   my ($self, $xc_out_dom, @prefixes) = @_;
-
-    # only doc element does charsets correctly
-    my $doc    = $xc_out_dom->ownerDocument;
-
-    # building bottom up: be sure we have all namespaces which may be
-    # declared later, on higher in the hierarchy.
-    my $env    = $doc->createElement('Dummy');
-    my $schema = $self->schema;
-    $env->setNamespace($schema->prefix($_)->{uri}, $_, 0)
-        for @prefixes;
-
-    # reparse tree
-    $env->addChild($xc_out_dom);
-    my $fixed_dom = XML::LibXML->load_xml(string => $env->toString(0));
-    my $new_out   = ($fixed_dom->documentElement->childNodes)[0];
-    $doc->importNode($new_out);
-#warn $new_out->toString(1);
-    $new_out;
-}
-
+sub keyInfo()    {shift->{XCWS_keyinfo}}
+sub signedInfo() {shift->{XCWS_siginfo}}
+sub signer()     {shift->{XCWS_signer}}
 
 #-----------------------------
 
 
-sub token() {shift->{XCWS_token}}
+sub token()       {shift->{XCWS_token}}
 sub remoteToken() {shift->{XCWS_rem_token}}
-
-
-sub _make_publish_token($$)
-{   my ($self, $token, $how) = @_;
-    my $publ
-      = ref $how eq 'CODE'       ? $how
-      : $how eq 'INCLUDE_BY_REF' ? $token->makeBinSecTokenWriter($self)
-      : $how eq 'NO'             ? sub {}
-      : error __x"do not understand how to publish token";
-
-    $self->{XCWS_publ_token} = $publ;
-}
-
-sub publishToken() {shift->{XCWS_publ_token}}
-
-
-sub _make_key_info($$)
-{   my ($self, $token, $how) = @_;
-    return $how if ref $how eq 'CODE';
- 
-    $how eq 'INCLUDE_BY_REF'
-        or error __x"publish_token either CODE or 'INCLUDE_BY_REF'";
-
-    my %ref   = 
-      ( URI       => '#'.$token->id
-      , ValueType => $token->type
-      );
-    my $schema  = $self->schema;
-    $schema->prefixFor(WSU_10);   # force inclusion of namespace decl
-
-    my $krt = $schema->findName('wsse:Reference');
-    my $krw = $schema->writer($krt, include_namespaces => 0);
-
-    my $kit = $schema->findName('wsse:SecurityTokenReference');
-    my $kiw = $schema->writer($kit, include_namespaces => 0);
-
-    $self->{XCWS_key_info} = sub ($) {
-       my ($doc) = @_;
-       my $kr  = $krw->($doc, \%ref);
-       my $ki  = $kiw->($doc, {cho_any => {$krt => $kr}});
-       +{ cho_ds_KeyName => [{$kit => $ki}] };
-    };
-}
-sub includeKeyInfo() {shift->{XCWS_key_info}}
-
-#-----------------------------
-
-sub signer()  {shift->{XCWS_signer}}
-sub checker() {shift->{XCWS_checker}}
-
-sub _make_signer($$)
-{   my ($self, $config, $privkey) = @_;
-    $self->{XCWS_signer} = XML::Compile::WSS::Sign
-     ->fromConfig($config, $privkey);
-}
-
-sub _make_checker($)
-{   my ($self, $config) = @_;
-    $config or return;
-    $self->{XCWS_checker} = XML::Compile::WSS::Sign->fromConfig($config);
-}
-
-
-sub signElement(%)
-{   my ($self, $node, %args) = @_;
-    my $wsuid = $node->getAttributeNS(WSU_10, 'Id');
-    unless($wsuid)
-    {   $wsuid = $args{id} || 'elem-'.$unique++;
-        $node->setNamespace(WSU_10, 'wsu', 0);
-        $node->setAttributeNS(WSU_10, 'Id', $wsuid);
-    }
-    push @{$self->{XCWS_to_sign}}, +{node => $node,  id => $wsuid};
-    $node;
-}
-
-
-sub takeElementsToSign() { delete shift->{XCWS_to_sign} || [] }
-
-
-sub checkElement($%)
-{   my ($self, $node, %args) = @_;
-    my $id = $node->getAttributeNS(WSU_10, 'Id')
-        or error "element to check {name} has no wsu:Id"
-             , name => $node->nodeName;
-
-    $self->{XCWS_to_check}{$id} = $node;
-}
-
-
-sub elementsToCheck()
-{   my $self = shift;
-    my $to_check = delete $self->{XCWS_to_check};
-    $self->{XCWS_to_check} =  {};
-    $to_check;
-}
 
 #-----------------------------
 #### HELPERS
-
-sub _get_sec_token($$)
-{   my ($self, $sec, $sig) = @_;
-    my $sec_tokens = $sig->{ds_KeyInfo}{cho_ds_KeyName}[0]
-        ->{wsse_SecurityTokenReference}{cho_any}[0];
-    my ($key_type, $key_data) = %$sec_tokens;
-    $key_type eq 'wsse_Reference'
-        or error __x"key-type {type} not yet supported", type => $key_type;
-    my $key_uri    = $key_data->{URI} or panic;
-    (my $key_id    = $key_uri) =~ s/^#//;
-
-    my $token;
-    if(my $data = $sec->{wsse_BinarySecurityToken})
-    {   $token = XML::Compile::WSS::SecToken->fromBinSecToken($self, $data);
-    }
-    else
-    {   error __x"cannot collect token from response";
-    }
-    
-    $token->id eq $key_id
-        or error __x"token does not match reference";
-
-    $token->type eq $key_data->{ValueType}
-        or error __x"token type {type1} does not match expected {type2}"
-             , type1 => $token->type, type2 => $key_data->{ValueType};
-
-    $token;
-}
-
-sub _get_signer($$)
-{   my ($self, $sig_meth, $token) = @_;
-    XML::Compile::WSS::Sign->new(type => $sig_meth
-      , public_key => $token);
-}
 
 sub prepareReading($)
 {   my ($self, $schema) = @_;
     $self->SUPER::prepareReading($schema);
 
-    $schema->declare(READER => 'ds:Signature',
-      , hooks => {type => 'ds:SignedInfoType', after => 'XML_NODE'});
+    my $config = $self->{XCWS_config};
+    if(my $r   = $config->{remote_token})
+    {   $self->{XCWS_rem_token} = XML::Compile::WSS::SecToken->fromConfig($r);
+    }
 
-    my $checker = $self->checker;
-
-    $self->{XCWS_reader} = sub {
-        my $sec  = shift;
-#warn Dumper $sec;
-        my $sig  = $sec->{ds_Signature};
-        unless($sig)
-        {   # When the signature is missing, we only die if we expect one
-            $self->checker or return;
-            error __x"requires signature block missing from remote";
+    my (@elems_to_check, $container, @signature_elems);
+    $schema->addHook
+      ( action => 'READER'
+      , type   =>  ($config->{sign_types} or panic)
+      , before => sub {
+          my ($node, $path) = @_;
+          push @elems_to_check, $node;
+          $node;
         }
+      );
 
-        my $info       = $sig->{ds_SignedInfo} || {};
+    # we need the unparsed node to canonicalize and check
+    $schema->addHook
+      ( action => 'READER'
+      , type   => 'ds:SignedInfoType'
+      , after  => 'XML_NODE'
+      );
 
-        # Check signature on SignedInfo
-        my $can_meth   = $info->{ds_CanonicalizationMethod};
-        my $can_pref   = $can_meth->{c14n_InclusiveNamespaces}{PrefixList};
-        my $si_canon   = $self->applyCanon($can_meth->{Algorithm}
-          , $info->{_XML_NODE}, $can_pref);
-
-        unless($checker)
-        {   # We only create the checker once: at the first received
-            # message.  We may need to invalidate it for reuse of this object.
-            my $sig_meth = $info->{ds_SignatureMethod}{Algorithm};
-            my $token    = $self->_get_sec_token($sec, $sig);
-            $checker     = $self->_get_signer($sig_meth, $token);
+    # collect the elements to check, while decoding them
+    $schema->addHook
+      ( action => 'READER'
+      , type   => ($config->{sign_put} || panic)
+      , after  => sub {
+          my ($xml, $data, $path) = @_;
+#warn "Located signature at $path";
+          push @signature_elems, $data->{ds_Signature}
+              if $data->{ds_Signature};
+          $container = $data;
+          $data;
         }
-#warn "#3 $si_canon";
-        $checker->check(\$si_canon, $sig->{ds_SignatureValue}{_})
-#           or error __x"signature on SignedInfo incorrect";
-            or warning __x"signature on SignedInfo incorrect";
+      );
 
-        # Check digest of the elements
-        my %references;
-        foreach my $ref (@{$info->{ds_Reference}})
-        {   my $uri = $ref->{URI};
-            $references{$uri} = $ref;
-        }
+    my $check_signature = $self->checker;
+    $schema->addHook
+      ( action => 'READER'
+      , type   => ($config->{sign_when} || panic)
+      , after  => sub {
+          my ($xml, $data, $path) = @_;
+#warn "Checking signatures when at $path";
+          @signature_elems
+              or error __x"signature element not found in answer";
 
-        my $check = $self->elementsToCheck;
-#print "FOUND: ", Dumper \%references, $info, $check;
-        foreach my $id (sort keys %$check)
-        {   my $node = $check->{$id};
-            my $ref  = delete $references{"#$id"}
-                or error __x"cannot find digest info for {elem}", elem => $id;
-            $self->_digest_elem_check($node, $ref)
-                or warning __x"digest info of {elem} is wrong", elem => $id;
+          # We can leave the checking via exceptions, so have to reset
+          # the counters for the next message first.
+          my @e = @elems_to_check;  @elems_to_check  = ();
+          my @s = @signature_elems; @signature_elems = ();
+
+          $check_signature->($container, $_, \@e) for @s;
+          $data;
         }
-    };
+      );
 
     $self;
 }
 
-sub check($)
-{   my ($self, $data) = @_;
-    $self->{XCWS_reader}->($data);
-}
+# The checker routines throw an exception on error
+sub checker($@)
+{   my $self   = shift;
+    my $config = $self->{XCWS_config};
+    my %args   = (%$config, @_);
 
-### BE WARNED: created nodes can only be used once!!! in XML::LibXML
-
-sub _create_inclns($)
-{   my ($self, $prefixes) = @_;
-    $prefixes ||= [];
-    my $schema  = $self->schema;
-    my $type    = $schema->findName('c14n:InclusiveNamespaces');
-    my $incns   = $schema->writer($type, include_namespaces => 0);
-
-    ( $type, sub {$incns->($_[0], {PrefixList => $prefixes})} );
-}
-
-sub _fill_signed_info()
-{   my $self = shift;
-    my $prefixes  = $self->defaultPrefixList;
-    my ($incns, $incns_make) = $self->_create_inclns($prefixes);
-    my $canonical = $self->canonicalizer;
-    my $canon     = $self->defaultCanonMethod;
-    my $signmeth  = $self->signer->type;
-
-    my $digest    = $self->defaultDigestMethod;
-    my $digester  = $self->digester($digest);
+    my $si         = $self->signedInfo;
+    my $si_checker = $si->checker($self, %args);
+    my $get_tokens = $self->keyInfo->getTokens($self, %args);
 
     sub {
-        my ($doc, $parts) = @_;
-        my $canon_method =
-         +{ Algorithm => $canon
-          , $incns    => $incns_make->($doc)
-          };
-    
-        my @refs;
-        foreach my $part (@$parts)
-        {   my $transform =
-              { Algorithm => $canon
-              , cho_any => [ {$incns => $incns_make->($doc)} ]
-              };
-    
-            my $repaired = $self->_repair_xml($part->{node}, qw/wsu SOAP-ENV/);
-            push @refs,
-             +{ URI             => '#'.$part->{id}
-              , ds_Transforms   => { ds_Transform => [$transform] }
-              , ds_DigestValue  => $digester->(\$canonical->($repaired))
-              , ds_DigestMethod => { Algorithm => $digest }
-              };
-        }
-    
-         +{ ds_CanonicalizationMethod => $canon_method
-          , ds_Reference              => \@refs
-          , ds_SignatureMethod        => { Algorithm => $signmeth }
-          };
+        my ($container, $sig, $elems) = @_;
+        my $ki        = $sig->{ds_KeyInfo};
+        my @tokens    = $ki ? $get_tokens->($ki, $container, $sig->{Id}) : ();
+
+        # Hey, you try to get tokens up in the hierachy in a recursive
+        # nested program yourself!
+        $ki->{__TOKENS} = \@tokens;
+
+        ### check the signed-info content
+
+        my $info      = $sig->{ds_SignedInfo};
+        $si_checker->($info, $elems, \@tokens);
+
+        ### Check the signature of the whole block
+
+        my $canon    = $info->{ds_CanonicalizationMethod};
+        my $preflist = $canon->{c14n_InclusiveNamespaces}{PrefixList}; # || [];
+        my $canonic  = $si->_get_canonic($canon->{Algorithm}, $preflist);
+        my $sigvalue = $sig->{ds_SignatureValue}{_};
+
+        my $signer   = XML::Compile::WSS::Sign->new
+          ( sign_method => $info->{ds_SignatureMethod}{Algorithm}
+          , public_key  => $tokens[0]
+          );
+
+        $signer->checker->($canonic->($info->{_XML_NODE}), $sigvalue)
+            or error __x"received signature value is incorrect";
+
+    };
+}
+
+sub builder(%)
+{   my $self   = shift;
+    my $config = $self->{XCWS_config};
+    my %args   = (%$config, @_);
+ 
+    my $signer     = $self->signer;
+    my $signmeth   = $signer->signMethod;
+    my $sign       = $signer->builder($self, %args);
+    my $signedinfo = $self->signedInfo->builder($self, %args);
+    my $keylink    = $self->keyInfo->builder($self, %args);
+    my $token      = $self->token;
+    my $tokenw     = $token->isa('XML::Compile::WSS::SecToken::EncrKey')
+      ? $token->builder($self, %args) : undef;
+
+    my $sigw       = $self->schema->writer('ds:Signature');
+
+    # sign the signature!
+    my $subsign;
+    if(my $subsig = $self->{XCWS_subsig})
+    {   $subsign = $subsig->builder;
+    }
+
+    my $unique = time;
+
+    sub {
+        my ($doc, $elems, $sec_node) = @_;
+        my ($sinfo, $si_canond) = $signedinfo->($doc, $elems, $signmeth);
+
+        $sec_node->appendChild($tokenw->($doc, $sec_node))
+           if $tokenw;
+
+        my $signature = $sign->($si_canond);
+        my %sig =
+          ( ds_SignedInfo     => $sinfo
+          , ds_SignatureValue => {_ => $signature}
+          , ds_KeyInfo        => $keylink->($doc, $token, $sec_node)
+          , Id                => 'SIG-'.$unique++
+          );
+        my $signode   = $sigw->($doc, \%sig);
+        $sec_node->appendChild($signode);
+
+        $subsign->($doc, [$signode], $sec_node)
+            if $subsign;
+
+        $sec_node;
     };
 }
 
 sub prepareWriting($)
 {   my ($self, $schema) = @_;
     $self->SUPER::prepareWriting($schema);
-    return $self if $self->{XCWS_sign};
-    my @elements_to_sign;
 
-    my $fill_signed_info = $self->_fill_signed_info;
-    my $signer = $self->signer;
+    $self->token
+        or error __x"creating signatures needs a token";
 
-    # encode by hand, because we need the signature immediately
-    my $infow  = $schema->writer('ds:SignedInfo');
+    my $config = $self->{XCWS_config};
 
-    my $sigt   = $schema->findName('ds:Signature');
-    my $sigw   = $schema->writer($sigt);
+    my @elems_to_sign;
+    $schema->addHook
+      ( action   => 'WRITER'
+      , type     => ($config->{sign_types} or panic)
+      , after    => sub {
+          my ($doc, $xml) = @_;
 
-    my $canonical     = $self->canonicalizer;
-    my $publish_token = $self->publishToken;
-    my $key_info      = $self->includeKeyInfo;
+          unless($xml->getAttributeNS(WSU_10, 'Id'))
+          {   my $wsuid = 'node-'.($xml+0);      # configurable?
+              $xml->setNamespace(WSU_10, wsu => 0);
+              $xml->setAttributeNS(WSU_10, Id => $wsuid);
 
-    $self->{XCWS_sign} = sub {
-        my ($doc, $sec) = @_;
-        my $to_sign   = $self->takeElementsToSign;
-        return $sec if $sec->{$sigt};           # signature already produced?
-        my $info      = $fill_signed_info->($doc, $to_sign);
-        my $info_node = $self->_repair_xml($infow->($doc, $info), 'SOAP-ENV');
-        my $signature = $signer->sign(\$canonical->($info_node));
-#warn "Sign %3 ",$canonical->($info_node);
+              # Above two lines do add a xml:wsu per Id.  Below does not,
+              # which is not always enough: elements live in weird places
+              #  my $wsu   = $schema->prefixFor(WSU_10);
+              #  $xml->setAttribute("$wsu:Id", $wsuid);
+          }
 
-        # The signature value is only known when the Info is ready,
-        # but gladly they are produced in the same order.
-        my %sig =
-          ( ds_SignedInfo     => $info_node
-          , ds_SignatureValue => {_ => $signature}
-          , ds_KeyInfo        => $key_info->($doc)
-          );
+#use XML::Compile::Util qw/type_of_node/;
+#warn "Registering to sign ".type_of_node($xml);
+          push @elems_to_sign, $xml;
+          $xml;
+        }
+      );
 
-        $sec->{$sigt}     = $sigw->($doc, \%sig);
-        $publish_token->($doc, $sec);
-        $sec;
-    };
+    my $container;
+    $schema->addHook
+      ( action => 'WRITER'
+      , type   => ($config->{sign_put} || panic)
+      , after  => sub {
+          my ($doc, $xml) = @_;
+#warn "Located signature container";
+#         $schema->prefixFor(WSU_10);
+          $container = $xml;
+        }
+      );
+
+    my $add_signature = $self->builder;
+    $schema->addHook
+      ( action => 'WRITER'
+      , type   => ($config->{sign_when} || panic)
+      , after  => sub {
+          my ($doc, $xml) = @_;
+#warn "Creating signature";
+          $add_signature->($doc, \@elems_to_sign, $container);
+          @elems_to_sign = ();
+          $xml;
+        }
+      );
+
     $self;
 }
 
-sub create($$)
-{   my ($self, $doc, $sec) = @_;
-    # cannot do much yet, first the Body must be ready.
-    $self->{XCWS_sec_hdr} = $sec;
-    $self;
-}
-
-
-sub createSignature($)
-{   my ($self, $doc) = @_;
-    $self->{XCWS_sign}->($doc, $self->{XCWS_sec_hdr});
-}
-
-#---------------------------
 sub loadSchemas($$)
 {   my ($self, $schema, $version) = @_;
     return if $schema->{XCWS_sig_loaded}++;
 
     $self->SUPER::loadSchemas($schema, $version);
-    my $xsddir = (dirname __FILE__).'/dsig';
 
-    trace "loading wss-dsig schemas";
+    my $xsddir = dirname __FILE__;
+    trace "loading wss-dsig schemas from $xsddir/(dsig|encr)/*.xsd";
 
-    $schema->prefixes(@prefixes);
-    $schema->importDefinitions( [glob "$xsddir/*.xsd"] );
+    my @xsds   =
+      ( bsd_glob("$xsddir/dsig/*.xsd")
+      , bsd_glob("$xsddir/encr/*.xsd")
+      );
 
+    $schema->addPrefixes(\%prefixes);
+    my $prefixes = join ',', sort keys %prefixes;
+    $schema->addKeyRewrite("PREFIXED($prefixes)");
 
+    $schema->importDefinitions(\@xsds);
+
+    $schema;
 }
 
 1;
